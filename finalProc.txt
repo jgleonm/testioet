@@ -1,0 +1,73 @@
+DELIMITER $$
+
+USE mytest;
+DROP PROCEDURE IF EXISTS GetCustomers;
+
+CREATE PROCEDURE GetCustomers()
+BEGIN
+
+	-- delete information of result table
+	DROP TABLE IF EXISTS mytest.result;
+
+	-- delete information of result final
+	TRUNCATE TABLE mytest.final;
+
+     	DECLARE finished INTEGER DEFAULT 0;
+	DECLARE nameEmployee VARCHAR(10);
+	DECLARE timeMO VARCHAR(11);
+	DECLARE timeTU VARCHAR(11);
+	DECLARE timeWE VARCHAR(11);
+	DECLARE timeTH VARCHAR(11);
+	DECLARE timeFR VARCHAR(11);
+	DECLARE timeSA VARCHAR(11);
+	DECLARE timeSU VARCHAR(11);
+
+
+	-- Initial data charge
+	CREATE TABLE result AS (
+	SELECT LEFT(registro,(INSTR(TRIM(registro),'=')-1))as name ,
+       		IF(INSTR(registro,'MO')>0,SUBSTRING(registro,INSTR(registro,'MO')+2,11),null) as mo,
+       		IF(INSTR(registro,'TU')>0,SUBSTRING(registro,INSTR(registro,'TU')+2,11),null) as tu,
+       		IF(INSTR(registro,'WE')>0,SUBSTRING(registro,INSTR(registro,'WE')+2,11),null) as we,
+       		IF(INSTR(registro,'TH')>0,SUBSTRING(registro,INSTR(registro,'TH')+2,11),null) as th,
+       		IF(INSTR(registro,'FR')>0,SUBSTRING(registro,INSTR(registro,'FR')+2,11),null) as fr,
+       		IF(INSTR(registro,'SA')>0,SUBSTRING(registro,INSTR(registro,'SA')+2,11),null) as sa,
+       		IF(INSTR(registro,'SU')>0,SUBSTRING(registro,INSTR(registro,'SU')+2,11),null) as su 
+  	   FROM mytest.cargaIncial);
+
+	-- declare cursor to read information of employees
+        DECLARE cur1 CURSOR FOR SELECT name,mo,tu,we,th,fr,sa,su FROM mytest.result;
+
+	-- declare NOT FOUND handler
+	DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+	DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET finished = 1;  
+	DECLARE CONTINUE HANDLER FOR SQLSTATE '23000' SET finished = 1;  
+
+	OPEN cur1;
+	getData: LOOP
+		FETCH cur1 INTO nameEmployee,timeMO,timeTU,timeWE,timeTH,timeFR,timeSA,timeSU;
+		IF finished = 1 THEN
+			LEAVE getData;
+		END IF;
+		INSERT INTO final
+		    SELECT name,
+            		   IF(ISNULL(NULLIF(timeMO,mo)),1,0)+
+            		   IF(ISNULL(NULLIF(timeTU,tu)),1,0)+
+	    		   IF(ISNULL(NULLIF(timeWE,we)),1,0)+
+	    		   IF(ISNULL(NULLIF(timeTH,th)),1,0)+
+	    		   IF(ISNULL(NULLIF(timeFR,fr)),1,0)+
+            		   IF(ISNULL(NULLIF(timeSA,sa)),1,0)+
+            		   IF(ISNULL(NULLIF(timeSU,su)),1,0) as assist
+ 		     FROM result
+		    WHERE NOT EXISTS (SELECT employee1, employee2 
+                                        FROM final 
+                                       WHERE (employee1 IN (nameEmployee,name)) 
+                                         AND (employee2 IN (nameEmployee,name)))
+                      AND name <> nameEmployee;
+
+	END LOOP getData;
+	CLOSE cur1;
+
+
+END $$
+DELIMITER ;

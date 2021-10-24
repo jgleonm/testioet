@@ -1,0 +1,223 @@
+DELIMITER $$
+
+DROP PROCEDURE IF EXISTS GetCustomers$$
+DROP TABLE IF EXISTS employTime$$
+
+ CREATE TABLE final (employee1 VARCHAR(10), employee2 VARCHAR(10), assistance INTEGER(3));
+
+CREATE PROCEDURE GetCustomers()
+BEGIN
+	DECLARE contentReg VARCHAR(500);
+	DECLARE nameEmployee VARCHAR(10);
+	DECLARE finished INTEGER DEFAULT 0;
+	DECLARE timeMO VARCHAR(5);
+	DECLARE timeTU VARCHAR(5);
+	DECLARE timeWE VARCHAR(5);
+	DECLARE timeTH VARCHAR(5);
+	DECLARE timeFR VARCHAR(5);
+	DECLARE timeSA VARCHAR(5);
+	DECLARE timeSU VARCHAR(5);
+
+	-- declare cursor to read information of employees
+        DECLARE cur1 CURSOR FOR SELECT registro FROM mytest.cargaIncial;
+
+	-- declare NOT FOUND handler
+	DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+
+
+	OPEN cur1;
+
+	getRecord: LOOP
+		FETCH cur1 INTO contentReg;
+		IF finished = 1 THEN 
+			LEAVE getRecord;
+		END IF;
+		-- Structure names and assistence
+		SELECT LEFT(contentReg,(INSTR(contentReg,'=')-1)) INTO nameEmployee;
+
+		-- Records time and hours by Monday
+		SELECT IF(INSTR(contentReg,'MO')>0,SUBSTRING(contentReg,INSTR(contentReg,'MO')+2,11),'') INTO timeMO;
+
+		-- Save records a Table
+		INSERT INTO employTime VALUES (nameEmployee, timeMO, timeTU, timeWE, timeTH, timeFR, timeSA, timeSU);
+	END LOOP getRecord;
+	CLOSE cur1;
+
+
+END$$
+DELIMITER ;
+
+
+CREATE TABLE result AS (
+SELECT LEFT(registro,(INSTR(registro,'=')-1))as name ,
+       IF(INSTR(registro,'MO')>0,SUBSTRING(registro,INSTR(registro,'MO')+2,11),null) as mo,
+       IF(INSTR(registro,'TU')>0,SUBSTRING(registro,INSTR(registro,'TU')+2,11),null) as tu,
+       IF(INSTR(registro,'WE')>0,SUBSTRING(registro,INSTR(registro,'WE')+2,11),null) as we,
+       IF(INSTR(registro,'TH')>0,SUBSTRING(registro,INSTR(registro,'TH')+2,11),null) as th,
+       IF(INSTR(registro,'FR')>0,SUBSTRING(registro,INSTR(registro,'FR')+2,11),null) as fr,
+       IF(INSTR(registro,'SA')>0,SUBSTRING(registro,INSTR(registro,'SA')+2,11),null) as sa,
+       IF(INSTR(registro,'SU')>0,SUBSTRING(registro,INSTR(registro,'SU')+2,11),null) as su 
+  from mytest.cargaIncial);
+
+
+SELECT count(b.tu)
+FROM result b
+WHERE b.tu IN (
+	SELECT a.name, a.tu 
+  	  FROM result a 
+ 	 WHERE a.tu IS NOT null)
+GROUP BY b.tu;
+
+
+SELECT concat(b.name), count(b.mo),count(b.tu)
+FROM result b
+WHERE b.mo  IN ('10:00-12:00')
+  OR b.tu  IN ('10:00-12:00')
+GROUP BY b.name, b.mo, b.tu;
+
+select concat(a.name,'-', 'RENE') as nombres, count(a.mo),count(a.tu),count(a.we),count(a.th),count(a.fr),count(a.sa),count(su)
+  from result a where (a.mo = (select c.mo                 
+                                 from result c                
+                                where c.mo is not null
+                                  and c.name = 'RENE')
+                  and a.name <> 'RENE')
+                   or (a.tu = (select c.tu                 
+                                 from result c                
+                                where c.tu is not null
+                                  and c.name = 'RENE')
+                  and a.name <> 'RENE')
+                   or (a.we = (select c.we                 
+                                 from result c                
+                                where c.we is not null
+                                  and c.name = 'RENE')
+                  and a.name <> 'RENE')
+                   or (a.th = (select c.th                 
+                                 from result c                
+                                where c.th is not null
+                                  and c.name = 'RENE')
+                  and a.name <> 'RENE')
+                   or (a.fr = (select c.fr                
+                                 from result c                
+                                where c.fr is not null
+                                  and c.name = 'RENE')
+                  and a.name <> 'RENE')
+                   or (a.sa = (select c.sa                 
+                                 from result c                
+                                where c.sa is not null
+                                  and c.name = 'RENE')
+                  and a.name <> 'RENE')
+                   or (a.su = (select c.su                 
+                                 from result c                
+                                where c.su is not null
+                                  and c.name = 'RENE')
+                  and a.name <> 'RENE')
+
+group by 1;
+
+select a.name, count(a.mo) as assist
+  from result a where (a.mo IN (select c.mo                 
+                                 from result c                
+                                where c.mo is not null
+                                  and c.name = 'RENE')
+                  and a.name)
+group by 1;
+
+select a.name, count(a.th) as assist
+  from result a where a.th in (select c.th                 
+                                 from result c                
+                                where c.th is not null
+                                  and c.name = 'RENE')
+                  and a.name
+group by 1;
+
+select a.name, count(a.mo), count(a.th), count(a.su)
+from result a where (a.mo = (select c.mo                 
+                                 from result c                
+                                where c.mo is not null
+                                  and c.name = 'RENE')
+                  and a.name <> 'RENE')
+                   or (a.th = (select c.th                 
+                                 from result c                
+                                where c.th is not null
+                                  and c.name = 'RENE')
+                  and a.name <> 'RENE')                  
+                   or (a.su = (select c.su                 
+                                 from result c                
+                                where c.su is not null
+                                  and c.name = 'RENE')
+                  and a.name <> 'RENE')
+
+group by 1;
+
+SELECT name,IFNULL(NULLIF("10:00-12:00",mo),1)+
+            IFNULL(NULLIF("10:00-12:00",tu),1)+
+	    IFNULL(NULLIF("10:00-12:00",we),1)+
+            IFNULL(NULLIF("10:00-12:00",th),1)+
+            IFNULL(NULLIF("10:00-12:00",su),1)
+ FROM result
+WHERE name <> 'RENE';
+
+SELECT name,NULLIF("10:00-12:00",mo),
+            NULLIF("10:00-12:00",tu),
+	    NULLIF(0,we),
+            NULLIF("01:00-03:00",th),
+	    NULLIF(0,fr),
+            NULLIF("14:00-18:00",sa),
+            NULLIF("20:00-21:00",su)
+ FROM result
+WHERE name <> 'RENE';
+
+SELECT CONCAT_WS("-",name,'RENE'),
+            IF(ISNULL(NULLIF("10:00-12:00",mo)),1,0)+
+            IF(ISNULL(NULLIF("10:00-12:00",tu)),1,0)+
+	    IF(ISNULL(NULLIF(0,we)),1,0)+
+	    IF(ISNULL(NULLIF("01:00-03:00",th)),1,0)+
+	    IF(ISNULL(NULLIF(0,fr)),1,0)+
+            IF(ISNULL(NULLIF("14:00-18:00",sa)),1,0)+
+            IF(ISNULL(NULLIF("20:00-21:00",su)),1,0)
+ FROM result
+WHERE name <> 'RENE';
+
+
+SELECT CONCAT_WS("-",name,'ASTRID'),
+            IF(ISNULL(NULLIF("10:00-12:00",mo)),1,0)+
+            IF(ISNULL(NULLIF(0,tu)),1,0)+
+	    IF(ISNULL(NULLIF(0,we)),1,0)+
+	    IF(ISNULL(NULLIF("12:00-14:00",th)),1,0)+
+	    IF(ISNULL(NULLIF(0,fr)),1,0)+
+            IF(ISNULL(NULLIF(0,sa)),1,0)+
+            IF(ISNULL(NULLIF("20:00-21:00",su)),1,0)
+ FROM result
+WHERE name <> 'ASTRID';
+
+SELECT CONCAT_WS("-",name,'ANDRES'),
+            IF(ISNULL(NULLIF("10:00-12:00",mo)),1,0)+
+            IF(ISNULL(NULLIF(0,tu)),1,0)+
+	    IF(ISNULL(NULLIF(0,we)),1,0)+
+	    IF(ISNULL(NULLIF("12:00-14:00",th)),1,0)+
+	    IF(ISNULL(NULLIF(0,fr)),1,0)+
+            IF(ISNULL(NULLIF(0,sa)),1,0)+
+            IF(ISNULL(NULLIF("20:00-21:00",su)),1,0)
+ FROM result
+WHERE name <> 'ANDRES' ;
+
+
+SELECT CONCAT_WS("-",name,'ANDRES'),
+            IF(ISNULL(NULLIF("10:00-12:00",mo)),1,0)+
+            IF(ISNULL(NULLIF(0,tu)),1,0)+
+	    IF(ISNULL(NULLIF(0,we)),1,0)+
+	    IF(ISNULL(NULLIF("12:00-14:00",th)),1,0)+
+	    IF(ISNULL(NULLIF(0,fr)),1,0)+
+            IF(ISNULL(NULLIF(0,sa)),1,0)+
+            IF(ISNULL(NULLIF("20:00-21:00",su)),1,0)
+ FROM result
+WHERE NOT EXISTS (SELECT employee1, employee2 
+                                     FROM final 
+                                     WHERE (employee1 NOT IN ('ASTRID','ANDRES')) 
+                                       OR (employee2 NOT IN ('ANDRES','ASTRID')))
+       AND name <> 'ANDRES' ;
+
+SELECT employee1, employee2 
+                                     FROM final 
+                                     WHERE (employee1 IN ('ASTRID','ANDRES')) 
+                                       OR (employee2 IN ('ANDRES','ASTRID'))
